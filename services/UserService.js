@@ -1,6 +1,30 @@
 import db from '../dist/db/models/index.js';
 import bcrypt from 'bcrypt';
 
+const bulkCreateUsers = async (users) => {
+    let successfulCount = 0;
+    let failedCount = 0;
+
+    for (const user of users) {
+        try {
+            const result = await createUser({ body: user });
+            if (result.code === 200) {
+                successfulCount++;
+            } else {
+                failedCount++;
+            }
+        } catch (error) {
+            console.error('Error creating user:', error);
+            failedCount++;
+        }
+    }
+    return {
+        code: 200,
+        message: `Registros exitosos: ${successfulCount}. Registros fallidos: ${failedCount}`
+    };
+};
+
+
 const createUser = async (req) => {
     const {
         name,
@@ -102,9 +126,68 @@ const deleteUser = async (id) => {
     };
 }
 
+const getAllUsers = async () => {
+    try {
+        const users = await db.User.findAll({
+            where: {
+                status: true
+            }
+        });
+        return {
+            code: 200,
+            message: users
+        };
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        return {
+            code: 500,
+            message: 'Internal Server Error'
+        };
+    }
+};
+
+const findUsers = async (filters) => {
+    const whereClause = {};
+  
+    if (filters.deleted !== undefined) {
+      whereClause.status = !filters.deleted; // true para activos, false para eliminados
+    }
+  
+    if (filters.name) {
+      whereClause.name = { [db.Sequelize.Op.like]: `%${filters.name}%` };
+    }
+  
+    if (filters.loggedInBefore) {
+      whereClause.lastLoginAt = { [db.Sequelize.Op.lt]: filters.loggedInBefore };
+    }
+  
+    if (filters.loggedInAfter) {
+      whereClause.lastLoginAt = { [db.Sequelize.Op.gt]: filters.loggedInAfter };
+    }
+  
+    try {
+      const users = await db.User.findAll({ where: whereClause });
+      return {
+        code: 200,
+        message: users,
+      };
+    } catch (error) {
+      console.error('Error querying users:', error);
+      return {
+        code: 500,
+        message: 'Internal Server Error',
+      };
+    }
+  };
+
+
+
 export default {
     createUser,
     getUserById,
     updateUser,
     deleteUser,
+    getAllUsers,
+    findUsers,
+    bulkCreateUsers,
 }

@@ -32,6 +32,9 @@ const login = async (email, password) => {
 
     await db.Session.create(session);
 
+    const now = new Date();
+    await db.User.update({ lastLoginAt: now }, { where: { id: response.id } });
+
     return {
         code: 200,
         message: token
